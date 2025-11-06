@@ -34,17 +34,27 @@ function FoodWaste() {
   }, [selectedBuilding])
 
   const loadFoodWasteData = async () => {
-    const data = await fetchLatestByCategory('food')
-    if (data) {
+    try {
+      const data = await fetchLatestByCategory('food')
+      console.log('Food data received:', data) // Debug log
+      
+      if (!data) {
+        console.error('No food data received from API')
+        return
+      }
+
       const buildings = ['Cafeteria', 'Hostel-A', 'Labs']
       const mealCounts = { 'Cafeteria': 450, 'Hostel-A': 200, 'Labs': 50 }
       
       let total = 0
       
       const updatedBuildings = buildings.map(building => {
-        const waste = Math.round((data[building]?.value || 0) * 10) / 10
+        const buildingData = data[building]
+        console.log(`Processing ${building}:`, buildingData)
+        
+        const waste = buildingData?.value ? Math.round(buildingData.value * 10) / 10 : 0
         const meals = mealCounts[building]
-        const wastePerMeal = Math.round((waste / meals) * 1000) / 1000
+        const wastePerMeal = waste > 0 ? Math.round((waste / meals) * 1000) / 1000 : 0
         const status = wastePerMeal > 0.07 ? 'warning' : 'good'
         
         total += waste
@@ -52,6 +62,9 @@ function FoodWaste() {
         return { name: building, waste, meals, wastePerMeal, status }
       })
 
+      console.log('Updated buildings:', updatedBuildings) // Debug log
+      console.log('Total waste:', total)
+      
       setBuildingData(updatedBuildings)
       setStats({
         current: Math.round(total * 10) / 10,
@@ -59,20 +72,50 @@ function FoodWaste() {
         monthly: Math.round(total * 30 * 10) / 10,
         reduction: 18
       })
+    } catch (error) {
+      console.error('Error in loadFoodWasteData:', error)
     }
   }
 
   const loadBuildingHistory = async (building) => {
-    const history = await fetchReadings('food', building, 20)
-    if (history && history.length > 0) {
+    try {
+      const history = await fetchReadings('food', building, 20)
+      console.log('Food history for', building, ':', history) // Debug log
+      
+      if (!history || history.length === 0) {
+        console.log('No history data for', building)
+        setChartData([])
+        return
+      }
+
       const formatted = history.reverse().map(reading => ({
         time: reading.time,
         waste: Math.round(reading.value * 10) / 10,
         building: reading.building
       }))
+      console.log('Formatted chart data:', formatted) // Debug log
       setChartData(formatted)
+    } catch (error) {
+      console.error('Error in loadBuildingHistory:', error)
     }
   }
+
+  const wasteBreakdown = [
+    { category: 'Plate Waste', amount: 18, percentage: 40, color: '#ef4444' },
+    { category: 'Preparation Waste', amount: 12, percentage: 27, color: '#f59e0b' },
+    { category: 'Spoilage', amount: 10, percentage: 22, color: '#8b5cf6' },
+    { category: 'Other', amount: 5, percentage: 11, color: '#64748b' }
+  ]
+
+  const weeklyTrend = [
+    { day: 'Mon', waste: 48 },
+    { day: 'Tue', waste: 52 },
+    { day: 'Wed', waste: 45 },
+    { day: 'Thu', waste: 50 },
+    { day: 'Fri', waste: 55 },
+    { day: 'Sat', waste: 42 },
+    { day: 'Sun', waste: 40 }
+  ]
 
   const insights = [
     { icon: '📉', text: 'Food waste decreased by 18% this month', type: 'positive' },
