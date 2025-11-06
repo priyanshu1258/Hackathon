@@ -25,100 +25,157 @@ function Navbar() {
   }, [location])
 
   return (
-    <nav className="bg-white dark:bg-slate-800 shadow-md sticky top-0 z-50 transition-colors">
+    <nav className="modern-card sticky top-0 z-50 backdrop-blur-xl bg-opacity-95 border-b-2">
       <div className="max-w-7xl mx-auto px-4">
-        <Link to="/" className="flex items-center gap-3 py-4 font-bold text-xl text-slate-800 dark:text-white hover:text-green-600 dark:hover:text-green-400 transition-colors">
-          <span className="text-2xl">🌱</span>
-          Campus Resource Monitor
-        </Link>
-        
-        <div className="flex items-center gap-4 md:hidden absolute right-4 top-4">
-          <button 
-            className="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-2xl"
-            onClick={toggleTheme}
-            aria-label="Toggle theme"
-            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
+        <div className="flex items-center justify-between py-4">
+          <Link to="/" className="flex items-center gap-3 font-bold text-xl gradient-text hover:scale-105 transition-transform duration-300">
+            <span className="text-3xl">🌱</span>
+            EcoTrack Pro
+          </Link>
           
-          <button 
-            className={`flex flex-col justify-center items-center w-10 h-10 relative transition-all ${isMenuOpen ? 'gap-0' : 'gap-1.5'}`}
-            onClick={handleMenuToggle}
-            aria-label="Toggle menu"
-          >
-            <span className={`block h-0.5 w-6 bg-slate-800 dark:bg-white transition-all ${isMenuOpen ? 'rotate-45 translate-y-0.5' : ''}`}></span>
-            <span className={`block h-0.5 w-6 bg-slate-800 dark:bg-white transition-all ${isMenuOpen ? 'opacity-0' : 'opacity-100'}`}></span>
-            <span className={`block h-0.5 w-6 bg-slate-800 dark:bg-white transition-all ${isMenuOpen ? '-rotate-45 -translate-y-0.5' : ''}`}></span>
-          </button>
+          <div className="flex items-center gap-4">
+            {/* Desktop Navigation */}
+            <ul className="hidden md:flex gap-2">
+              <li>
+                <Link 
+                  to="/" 
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 premium-btn ${
+                    isActive('/') 
+                      ? 'gradient-bg-primary text-white shadow-lg' 
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                  onClick={handleLinkClick}
+                >
+                  <span className="text-xl">📊</span>
+                  <span className="font-medium">Dashboard</span>
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  to="/electricity" 
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 premium-btn ${
+                    isActive('/electricity')
+                      ? 'gradient-bg-electricity text-white shadow-lg' 
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                  onClick={handleLinkClick}
+                >
+                  <span className="text-xl">⚡</span>
+                  <span className="font-medium">Electricity</span>
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  to="/water" 
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 premium-btn ${
+                    isActive('/water')
+                      ? 'gradient-bg-water text-white shadow-lg' 
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                  onClick={handleLinkClick}
+                >
+                  <span className="text-xl">💧</span>
+                  <span className="font-medium">Water</span>
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  to="/food-waste" 
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 premium-btn ${
+                    isActive('/food-waste')
+                      ? 'gradient-bg-food text-white shadow-lg' 
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                  onClick={handleLinkClick}
+                >
+                  <span className="text-xl">🍽️</span>
+                  <span className="font-medium">Food Waste</span>
+                </Link>
+              </li>
+            </ul>
+            
+            {/* Theme Toggle */}
+            <button 
+              className="p-2.5 rounded-xl gradient-bg-primary text-white shadow-md hover:shadow-xl transition-all duration-300 hover:scale-110 hover-glow premium-btn"
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            >
+              <div className="text-xl transition-all duration-500" style={{ transform: theme === 'dark' ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                {theme === 'light' ? '🌙' : '☀️'}
+              </div>
+            </button>
+            
+            {/* Mobile Menu Button */}
+            <button 
+              className="md:hidden flex flex-col justify-center items-center w-10 h-10 relative transition-all"
+              onClick={handleMenuToggle}
+              aria-label="Toggle menu"
+            >
+              <span className={`block h-0.5 w-6 bg-gray-800 dark:bg-white transition-all ${isMenuOpen ? 'rotate-45 translate-y-0.5' : 'mb-1.5'}`}></span>
+              <span className={`block h-0.5 w-6 bg-gray-800 dark:bg-white transition-all ${isMenuOpen ? 'opacity-0' : 'opacity-100 mb-1.5'}`}></span>
+              <span className={`block h-0.5 w-6 bg-gray-800 dark:bg-white transition-all ${isMenuOpen ? '-rotate-45 -translate-y-0.5' : ''}`}></span>
+            </button>
+          </div>
         </div>
-
-        <ul className={`flex-col md:flex-row md:flex gap-2 pb-4 md:pb-0 ${isMenuOpen ? 'flex' : 'hidden md:flex'}`}>
+        
+        {/* Mobile Navigation */}
+        <ul className={`md:hidden flex-col gap-2 pb-4 animate-fade-in ${isMenuOpen ? 'flex' : 'hidden'}`}>
           <li>
             <Link 
               to="/" 
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 ${
                 isActive('/') 
-                  ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 font-semibold' 
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  ? 'gradient-bg-primary text-white shadow-md' 
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
               onClick={handleLinkClick}
             >
               <span className="text-xl">📊</span>
-              Dashboard
+              <span className="font-medium">Dashboard</span>
             </Link>
           </li>
           <li>
             <Link 
               to="/electricity" 
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 ${
                 isActive('/electricity')
-                  ? 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 font-semibold' 
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  ? 'gradient-bg-electricity text-white shadow-md' 
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
               onClick={handleLinkClick}
             >
               <span className="text-xl">⚡</span>
-              Electricity
+              <span className="font-medium">Electricity</span>
             </Link>
           </li>
           <li>
             <Link 
               to="/water" 
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 ${
                 isActive('/water')
-                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold' 
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  ? 'gradient-bg-water text-white shadow-md' 
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
               onClick={handleLinkClick}
             >
               <span className="text-xl">💧</span>
-              Water
+              <span className="font-medium">Water</span>
             </Link>
           </li>
           <li>
             <Link 
               to="/food-waste" 
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 ${
                 isActive('/food-waste')
-                  ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 font-semibold' 
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  ? 'gradient-bg-food text-white shadow-md' 
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
               onClick={handleLinkClick}
             >
               <span className="text-xl">🍽️</span>
-              Food Waste
+              <span className="font-medium">Food Waste</span>
             </Link>
-          </li>
-          <li className="hidden md:block ml-auto">
-            <button 
-              className="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-2xl"
-              onClick={toggleTheme}
-              aria-label="Toggle theme"
-              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            >
-              {theme === 'light' ? '🌙' : '☀️'}
-            </button>
           </li>
         </ul>
       </div>
