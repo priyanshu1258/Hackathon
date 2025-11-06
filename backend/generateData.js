@@ -3,9 +3,15 @@ require("dotenv").config();
 const admin = require("firebase-admin");
 const path = require("path");
 
-// ✅ Load service account from env
-const serviceAccountPath = path.resolve(process.env.FIREBASE_KEY_PATH);
-const serviceAccount = require(serviceAccountPath);
+// ✅ Load service account from env with error handling
+let serviceAccount;
+try {
+  const serviceAccountPath = path.resolve(process.env.FIREBASE_KEY_PATH);
+  serviceAccount = require(serviceAccountPath);
+} catch (error) {
+  console.error("❌ Failed to load service account key. Check FIREBASE_KEY_PATH.", error);
+  process.exit(1); // Exit the process with an error code
+}
 
 // ✅ Initialize Firebase Admin SDK
 admin.initializeApp({
@@ -92,7 +98,7 @@ db.ref("/test")
   .catch((err) => console.error("Firebase connection test failed:", err));
 
 // 🔁 Run simulation
-const interval = 10 * 60 * 1000; // 10 minutes
+const interval = 10 * 1000; // 10s for testing
 // const interval = 30 * 60 * 1000; // uncomment for production (30 minutes)
 
 console.log("🚀 Fake data generator started...");
