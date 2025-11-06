@@ -1,40 +1,77 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import StatCard from '../components/StatCard'
+import { fetchLatestByCategory, fetchReadings, setupSocketListeners } from '../services/api'
 
 function Water() {
-  const [selectedBuilding, setSelectedBuilding] = useState('All Buildings')
+  const [selectedBuilding, setSelectedBuilding] = useState('Hostel-A')
+  const [stats, setStats] = useState({ current: 0, daily: 0, monthly: 0, savings: 12 })
+  const [buildingData, setBuildingData] = useState([
+    { name: 'Hostel-A', usage: 0, target: 2200, percentage: 0, status: 'normal' },
+    { name: 'Library', usage: 0, target: 800, percentage: 0, status: 'normal' },
+    { name: 'Cafeteria', usage: 0, target: 3800, percentage: 0, status: 'normal' },
+    { name: 'Labs', usage: 0, target: 900, percentage: 0, status: 'normal' }
+  ])
+  const [chartData, setChartData] = useState([])
 
-  const buildings = ['All Buildings', 'Hostel-A', 'Library', 'Cafeteria', 'Labs']
+  const buildings = ['Hostel-A', 'Library', 'Cafeteria', 'Labs']
 
-  const stats = {
-    current: 5430,
-    daily: 18500,
-    monthly: 485000,
-    savings: 12
+  useEffect(() => {
+    loadWaterData()
+    const cleanup = setupSocketListeners((update) => {
+      if (update.category === 'water') {
+        loadWaterData()
+      }
+    })
+    return cleanup
+  }, [])
+
+  useEffect(() => {
+    if (selectedBuilding) {
+      loadBuildingHistory(selectedBuilding)
+    }
+  }, [selectedBuilding])
+
+  const loadWaterData = async () => {
+    const data = await fetchLatestByCategory('water')
+    if (data) {
+      const buildings = ['Hostel-A', 'Library', 'Cafeteria', 'Labs']
+      const targets = { 'Hostel-A': 2200, 'Library': 800, 'Cafeteria': 3800, 'Labs': 900 }
+      
+      let total = 0
+      
+      const updatedBuildings = buildings.map(building => {
+        const usage = Math.round(data[building]?.value || 0)
+        const target = targets[building]
+        const percentage = Math.round((usage / target) * 100)
+        const status = percentage > 110 ? 'warning' : percentage < 85 ? 'good' : 'normal'
+        
+        total += usage
+        
+        return { name: building, usage, target, percentage, status }
+      })
+
+      setBuildingData(updatedBuildings)
+      setStats({
+        current: total,
+        daily: total * 3,
+        monthly: total * 90,
+        savings: 12
+      })
+    }
   }
 
-  const buildingData = [
-    { name: 'Hostel-A', usage: 2500, target: 2200, percentage: 114, status: 'warning' },
-    { name: 'Library', usage: 600, target: 800, percentage: 75, status: 'good' },
-    { name: 'Cafeteria', usage: 4000, target: 3800, percentage: 105, status: 'warning' },
-    { name: 'Labs', usage: 800, target: 900, percentage: 89, status: 'normal' }
-  ]
-
-  const hourlyData = [
-    { hour: '08:00', usage: 3200 },
-    { hour: '09:00', usage: 4100 },
-    { hour: '10:00', usage: 4800 },
-    { hour: '11:00', usage: 5200 },
-    { hour: '12:00', usage: 6500 },
-    { hour: '13:00', usage: 5800 },
-    { hour: '14:00', usage: 5430 }
-  ]
-
-  const alerts = [
-    { type: 'warning', message: 'Hostel-A usage 14% above target', time: '2 min ago' },
-    { type: 'info', message: 'Library showing efficient usage', time: '15 min ago' },
-    { type: 'warning', message: 'Cafeteria peak usage detected', time: '1 hour ago' }
-  ]
+  const loadBuildingHistory = async (building) => {
+    const history = await fetchReadings('water', building, 20)
+    if (history && history.length > 0) {
+      const formatted = history.reverse().map(reading => ({
+        time: reading.time,
+        usage: Math.round(reading.value),
+        building: reading.building
+      }))
+      setChartData(formatted)
+    }
+  }
 
   const tips = [
     '💧 Fix leaking taps immediately - saves up to 15L/day',
@@ -95,6 +132,29 @@ function Water() {
         />
       </div>
 
+      {/* Usage Trend Chart */}
+      <div className="mb-12">
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Usage Trend - {selectedBuilding}</h2>
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-md">
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#475569" opacity={0.2} />
+              <XAxis dataKey="time" stroke="#64748b" />
+              <YAxis stroke="#64748b" />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#1e293b', 
+                  border: 'none', 
+                  borderRadius: '8px',
+                  color: '#f1f5f9'
+                }} 
+              />
+              <Line type="monotone" dataKey="usage" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       {/* Building Usage */}
       <div className="mb-12">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Building-wise Water Usage</h2>
@@ -134,60 +194,23 @@ function Water() {
         </div>
       </div>
 
-      {/* Hourly Consumption Chart */}
-      <div className="mb-12">
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Today's Hourly Consumption</h2>
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-md">
-          <div className="flex items-end justify-between h-72 gap-2">
-            {hourlyData.map((data, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div className="w-full flex items-end justify-center h-full">
-                  <div 
-                    className="w-full bg-gradient-to-t from-blue-400 to-blue-500 rounded-t-lg relative flex items-start justify-center pt-2"
-                    style={{ height: `${(data.usage / 6500) * 100}%`, minHeight: '60px' }}
-                  >
-                    <span className="text-white text-xs font-bold">{data.usage}</span>
-                  </div>
-                </div>
-                <div className="text-xs mt-2 text-slate-600 dark:text-slate-400 font-medium">{data.hour}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Alerts */}
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Recent Alerts</h2>
-          <div className="space-y-3">
-            {alerts.map((alert, index) => (
-              <div key={index} className={`flex items-start gap-3 p-4 rounded-lg ${
-                alert.type === 'warning' 
-                  ? 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800' 
-                  : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-              }`}>
-                <div className="text-2xl">
-                  {alert.type === 'warning' ? '⚠️' : 'ℹ️'}
-                </div>
-                <div className="flex-1">
-                  <div className="text-slate-800 dark:text-slate-200 font-medium">{alert.message}</div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">{alert.time}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 gap-6 mt-6">
         {/* Water Saving Tips */}
         <div>
           <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Water Saving Tips</h2>
-          <div className="space-y-3">
-            {tips.map((tip, index) => (
-              <div key={index} className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-5 py-4 text-slate-700 dark:text-slate-300 font-medium">
-                {tip}
-              </div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-5 py-4 text-slate-700 dark:text-slate-300 font-medium">
+              💧 Fix leaking taps immediately - saves up to 15L/day
+            </div>
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-5 py-4 text-slate-700 dark:text-slate-300 font-medium">
+              🚿 Take shorter showers - reduce by 2 minutes
+            </div>
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-5 py-4 text-slate-700 dark:text-slate-300 font-medium">
+              🌿 Water plants during early morning or evening
+            </div>
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-5 py-4 text-slate-700 dark:text-slate-300 font-medium">
+              ♻️ Reuse water where possible (e.g., for gardening)
+            </div>
           </div>
         </div>
       </div>

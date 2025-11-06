@@ -1,32 +1,88 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import StatCard from '../components/StatCard'
+import { fetchLatestByCategory, fetchReadings, setupSocketListeners } from '../services/api'
 
 function Electricity() {
-  const [selectedBuilding, setSelectedBuilding] = useState('All Buildings')
+  const [selectedBuilding, setSelectedBuilding] = useState('Hostel-A')
+  const [stats, setStats] = useState({ current: 0, peak: 0, average: 0, savings: 15 })
+  const [buildingData, setBuildingData] = useState([
+    { name: 'Hostel-A', usage: 0, capacity: 200, percentage: 0, status: 'normal' },
+    { name: 'Library', usage: 0, capacity: 150, percentage: 0, status: 'normal' },
+    { name: 'Cafeteria', usage: 0, capacity: 250, percentage: 0, status: 'normal' },
+    { name: 'Labs', usage: 0, capacity: 180, percentage: 0, status: 'normal' }
+  ])
+  const [recentReadings, setRecentReadings] = useState([])
+  const [chartData, setChartData] = useState([])
 
-  const buildings = ['All Buildings', 'Hostel-A', 'Library', 'Cafeteria', 'Labs']
+  const buildings = ['Hostel-A', 'Library', 'Cafeteria', 'Labs']
 
-  const stats = {
-    current: 1250,
-    peak: 1850,
-    average: 1120,
-    savings: 15
+  useEffect(() => {
+    loadElectricityData()
+    const cleanup = setupSocketListeners((update) => {
+      if (update.category === 'electricity') {
+        loadElectricityData()
+      }
+    })
+    return cleanup
+  }, [])
+
+  useEffect(() => {
+    if (selectedBuilding) {
+      loadBuildingHistory(selectedBuilding)
+    }
+  }, [selectedBuilding])
+
+  const loadElectricityData = async () => {
+    const data = await fetchLatestByCategory('electricity')
+    if (data) {
+      const buildings = ['Hostel-A', 'Library', 'Cafeteria', 'Labs']
+      const capacities = { 'Hostel-A': 200, 'Library': 150, 'Cafeteria': 250, 'Labs': 180 }
+      
+      let total = 0
+      let peak = 0
+      
+      const updatedBuildings = buildings.map(building => {
+        const usage = Math.round(data[building]?.value || 0)
+        const capacity = capacities[building]
+        const percentage = Math.round((usage / capacity) * 100)
+        const status = percentage > 75 ? 'warning' : 'normal'
+        
+        total += usage
+        if (usage > peak) peak = usage
+        
+        return { name: building, usage, capacity, percentage, status }
+      })
+
+      setBuildingData(updatedBuildings)
+      setStats({
+        current: total,
+        peak: peak,
+        average: Math.round(total / buildings.length),
+        savings: 15
+      })
+
+      // Update recent readings
+      const readings = buildings.map(building => ({
+        time: data[building]?.time || '00:00',
+        value: Math.round(data[building]?.value || 0),
+        building: building
+      }))
+      setRecentReadings(readings)
+    }
   }
 
-  const buildingData = [
-    { name: 'Hostel-A', usage: 120, capacity: 200, percentage: 60, status: 'normal' },
-    { name: 'Library', usage: 80, capacity: 150, percentage: 53, status: 'normal' },
-    { name: 'Cafeteria', usage: 200, capacity: 250, percentage: 80, status: 'warning' },
-    { name: 'Labs', usage: 150, capacity: 180, percentage: 83, status: 'warning' }
-  ]
-
-  const recentReadings = [
-    { time: '14:00', value: 1250, building: 'Cafeteria' },
-    { time: '13:45', value: 1180, building: 'Labs' },
-    { time: '13:30', value: 1220, building: 'Hostel-A' },
-    { time: '13:15', value: 1190, building: 'Library' },
-    { time: '13:00', value: 1210, building: 'Cafeteria' }
-  ]
+  const loadBuildingHistory = async (building) => {
+    const history = await fetchReadings('electricity', building, 20)
+    if (history && history.length > 0) {
+      const formatted = history.reverse().map(reading => ({
+        time: reading.time,
+        value: Math.round(reading.value),
+        building: reading.building
+      }))
+      setChartData(formatted)
+    }
+  }
 
   const tips = [
     '💡 Switch off lights when leaving rooms',
@@ -85,6 +141,35 @@ function Electricity() {
           trendValue="vs target"
           color="#10b981"
         />
+      </div>
+
+      {/* Historical Chart */}
+      <div className="mb-12">
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Usage Trend - {selectedBuilding}</h2>
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-md">
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="colorElectricity" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.1}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#475569" opacity={0.2} />
+              <XAxis dataKey="time" stroke="#64748b" />
+              <YAxis stroke="#64748b" />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#1e293b', 
+                  border: 'none', 
+                  borderRadius: '8px',
+                  color: '#f1f5f9'
+                }} 
+              />
+              <Area type="monotone" dataKey="value" stroke="#f59e0b" fillOpacity={1} fill="url(#colorElectricity)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* Building Usage */}

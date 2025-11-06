@@ -101,6 +101,7 @@ db.ref("/test")
 const interval = 10 * 1000; // 10s for testing
 // const interval = 30 * 60 * 1000; // uncomment for production (30 minutes)
 
-console.log("🚀 Fake data generator started...");
+console.log("🚀 Test data generator started...");
 simulate(); // run immediately
 setInterval(simulate, interval);
+

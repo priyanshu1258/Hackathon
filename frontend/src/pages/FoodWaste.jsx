@@ -1,40 +1,78 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import StatCard from '../components/StatCard'
+import { fetchLatestByCategory, fetchReadings, setupSocketListeners } from '../services/api'
 
 function FoodWaste() {
   const [selectedPeriod, setSelectedPeriod] = useState('Today')
+  const [selectedBuilding, setSelectedBuilding] = useState('Cafeteria')
+  const [stats, setStats] = useState({ current: 0, daily: 0, monthly: 0, reduction: 18 })
+  const [buildingData, setBuildingData] = useState([
+    { name: 'Cafeteria', waste: 0, meals: 450, wastePerMeal: 0, status: 'normal' },
+    { name: 'Hostel-A', waste: 0, meals: 200, wastePerMeal: 0, status: 'normal' },
+    { name: 'Labs', waste: 0, meals: 50, wastePerMeal: 0, status: 'normal' }
+  ])
+  const [chartData, setChartData] = useState([])
 
   const periods = ['Today', 'This Week', 'This Month']
+  const buildings = ['Cafeteria', 'Hostel-A', 'Labs']
 
-  const stats = {
-    current: 45,
-    daily: 52,
-    monthly: 1380,
-    reduction: 18
+  useEffect(() => {
+    loadFoodWasteData()
+    const cleanup = setupSocketListeners((update) => {
+      if (update.category === 'food') {
+        loadFoodWasteData()
+      }
+    })
+    return cleanup
+  }, [])
+
+  useEffect(() => {
+    if (selectedBuilding) {
+      loadBuildingHistory(selectedBuilding)
+    }
+  }, [selectedBuilding])
+
+  const loadFoodWasteData = async () => {
+    const data = await fetchLatestByCategory('food')
+    if (data) {
+      const buildings = ['Cafeteria', 'Hostel-A', 'Labs']
+      const mealCounts = { 'Cafeteria': 450, 'Hostel-A': 200, 'Labs': 50 }
+      
+      let total = 0
+      
+      const updatedBuildings = buildings.map(building => {
+        const waste = Math.round((data[building]?.value || 0) * 10) / 10
+        const meals = mealCounts[building]
+        const wastePerMeal = Math.round((waste / meals) * 1000) / 1000
+        const status = wastePerMeal > 0.07 ? 'warning' : 'good'
+        
+        total += waste
+        
+        return { name: building, waste, meals, wastePerMeal, status }
+      })
+
+      setBuildingData(updatedBuildings)
+      setStats({
+        current: Math.round(total * 10) / 10,
+        daily: Math.round(total * 1.15 * 10) / 10,
+        monthly: Math.round(total * 30 * 10) / 10,
+        reduction: 18
+      })
+    }
   }
 
-  const buildingData = [
-    { name: 'Cafeteria', waste: 35, meals: 450, wastePerMeal: 0.078, status: 'warning' },
-    { name: 'Hostel-A', waste: 8, meals: 200, wastePerMeal: 0.040, status: 'good' },
-    { name: 'Labs', waste: 2, meals: 50, wastePerMeal: 0.040, status: 'good' }
-  ]
-
-  const wasteBreakdown = [
-    { category: 'Plate Waste', amount: 18, percentage: 40, color: '#ef4444' },
-    { category: 'Preparation Waste', amount: 12, percentage: 27, color: '#f59e0b' },
-    { category: 'Spoilage', amount: 10, percentage: 22, color: '#8b5cf6' },
-    { category: 'Other', amount: 5, percentage: 11, color: '#64748b' }
-  ]
-
-  const weeklyTrend = [
-    { day: 'Mon', waste: 48 },
-    { day: 'Tue', waste: 52 },
-    { day: 'Wed', waste: 45 },
-    { day: 'Thu', waste: 50 },
-    { day: 'Fri', waste: 55 },
-    { day: 'Sat', waste: 42 },
-    { day: 'Sun', waste: 40 }
-  ]
+  const loadBuildingHistory = async (building) => {
+    const history = await fetchReadings('food', building, 20)
+    if (history && history.length > 0) {
+      const formatted = history.reverse().map(reading => ({
+        time: reading.time,
+        waste: Math.round(reading.value * 10) / 10,
+        building: reading.building
+      }))
+      setChartData(formatted)
+    }
+  }
 
   const insights = [
     { icon: '📉', text: 'Food waste decreased by 18% this month', type: 'positive' },
@@ -100,6 +138,40 @@ function FoodWaste() {
           trendValue="vs last month"
           color="#10b981"
         />
+      </div>
+
+      {/* Waste Trend Chart */}
+      <div className="mb-12">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Waste Trend</h2>
+          <select 
+            className="px-4 py-2 rounded-lg border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-medium cursor-pointer hover:border-green-500 focus:outline-none"
+            value={selectedBuilding}
+            onChange={(e) => setSelectedBuilding(e.target.value)}
+          >
+            {buildings.map(building => (
+              <option key={building} value={building}>{building}</option>
+            ))}
+          </select>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-md">
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#475569" opacity={0.2} />
+              <XAxis dataKey="time" stroke="#64748b" />
+              <YAxis stroke="#64748b" />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#1e293b', 
+                  border: 'none', 
+                  borderRadius: '8px',
+                  color: '#f1f5f9'
+                }} 
+              />
+              <Bar dataKey="waste" fill="#10b981" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* Building/Location Data */}

@@ -1,38 +1,68 @@
 import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import StatCard from '../components/StatCard'
+import { fetchLatestData, setupSocketListeners } from '../services/api'
 
 function Dashboard() {
-  // Sample data - will be replaced with real data from backend
-  const stats = {
-    electricity: {
-      total: 1250,
-      unit: 'kWh',
-      trend: 'down',
-      trendValue: '12%',
-      color: '#f59e0b'
-    },
-    water: {
-      total: 5430,
-      unit: 'L',
-      trend: 'down',
-      trendValue: '8%',
-      color: '#3b82f6'
-    },
-    foodWaste: {
-      total: 45,
-      unit: 'kg',
-      trend: 'up',
-      trendValue: '5%',
-      color: '#10b981'
-    }
-  }
+  const [stats, setStats] = useState({
+    electricity: { total: 0, unit: 'kWh', trend: 'down', trendValue: '0%', color: '#f59e0b' },
+    water: { total: 0, unit: 'L', trend: 'down', trendValue: '0%', color: '#3b82f6' },
+    foodWaste: { total: 0, unit: 'kg', trend: 'up', trendValue: '0%', color: '#10b981' }
+  })
 
-  const buildingData = [
-    { name: 'Hostel-A', electricity: 120, water: 2500, food: 2 },
-    { name: 'Library', electricity: 80, water: 600, food: 0.5 },
-    { name: 'Cafeteria', electricity: 200, water: 4000, food: 10 },
-    { name: 'Labs', electricity: 150, water: 800, food: 1 }
-  ]
+  const [buildingData, setBuildingData] = useState([
+    { name: 'Hostel-A', electricity: 0, water: 0, food: 0 },
+    { name: 'Library', electricity: 0, water: 0, food: 0 },
+    { name: 'Cafeteria', electricity: 0, water: 0, food: 0 },
+    { name: 'Labs', electricity: 0, water: 0, food: 0 }
+  ])
+
+  useEffect(() => {
+    // Fetch initial data
+    const loadData = async () => {
+      const data = await fetchLatestData()
+      if (data) {
+        updateDashboardData(data)
+      }
+    }
+    
+    loadData()
+
+    // Setup real-time updates
+    const cleanup = setupSocketListeners((update) => {
+      loadData() // Reload all data when any update arrives
+    })
+
+    return cleanup
+  }, [])
+
+  const updateDashboardData = (data) => {
+    // Calculate totals for each category
+    const buildings = ['Hostel-A', 'Library', 'Cafeteria', 'Labs']
+    
+    let totalElectricity = 0
+    let totalWater = 0
+    let totalFood = 0
+
+    const updatedBuildings = buildings.map(building => {
+      const electricity = data.electricity?.[building]?.value || 0
+      const water = data.water?.[building]?.value || 0
+      const food = data.food?.[building]?.value || 0
+
+      totalElectricity += electricity
+      totalWater += water
+      totalFood += food
+
+      return { name: building, electricity, water, food }
+    })
+
+    setBuildingData(updatedBuildings)
+    setStats({
+      electricity: { total: Math.round(totalElectricity), unit: 'kWh', trend: 'down', trendValue: '12%', color: '#f59e0b' },
+      water: { total: Math.round(totalWater), unit: 'L', trend: 'down', trendValue: '8%', color: '#3b82f6' },
+      foodWaste: { total: Math.round(totalFood * 10) / 10, unit: 'kg', trend: 'up', trendValue: '5%', color: '#10b981' }
+    })
+  }
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 bg-slate-50 dark:bg-slate-900 min-h-screen">
