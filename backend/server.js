@@ -1,4 +1,4 @@
-// server.js
+// server.js - Combined Server + Data Generator
 require("dotenv").config();
 const express = require("express");
 const http = require("http");
@@ -14,9 +14,18 @@ const server = http.createServer(app);
 app.use(cors());
 app.use(express.json());
 
-// ✅ Load service account from env
-const serviceAccountPath = path.resolve(process.env.FIREBASE_KEY_PATH);
-const serviceAccount = require(serviceAccountPath);
+// ✅ Load service account from env with error handling
+let serviceAccount;
+try {
+  const serviceAccountPath = path.resolve(process.env.FIREBASE_KEY_PATH);
+  serviceAccount = require(serviceAccountPath);
+} catch (error) {
+  console.error(
+    "❌ Failed to load service account key. Check FIREBASE_KEY_PATH.",
+    error
+  );
+  process.exit(1);
+}
 
 // ✅ Initialize Firebase Admin SDK
 admin.initializeApp({
@@ -25,6 +34,95 @@ admin.initializeApp({
 });
 
 const db = admin.database();
+
+// ==================== DATA GENERATION LOGIC ====================
+
+// Buildings and categories
+const buildings = ["Hostel-A", "Library", "Cafeteria", "Labs"];
+const categories = ["electricity", "water", "food"];
+
+// 🕒 Format HH:MM
+function formatTime(ts) {
+  const d = new Date(ts);
+  return `${d.getHours().toString().padStart(2, "0")}:${d
+    .getMinutes()
+    .toString()
+    .padStart(2, "0")}`;
+}
+
+// 📊 Generate fake data per category/building
+function generateReading(category, building, ts) {
+  let base,
+    unit,
+    value,
+    meta = {};
+
+  switch (category) {
+    case "electricity":
+      base = building.includes("Hostel")
+        ? 120
+        : building.includes("Cafeteria")
+        ? 200
+        : 80;
+      value = +(base + (Math.random() - 0.5) * base * 0.3).toFixed(2);
+      unit = "kWh";
+      break;
+
+    case "water":
+      base = building.includes("Hostel")
+        ? 2500
+        : building.includes("Cafeteria")
+        ? 4000
+        : 600;
+      value = Math.round(base + (Math.random() - 0.5) * base * 0.25);
+      unit = "L";
+      break;
+
+    case "food":
+      base = building.includes("Cafeteria")
+        ? 10
+        : building.includes("Hostel")
+        ? 2
+        : 0.5;
+      value = +(base + (Math.random() - 0.5) * base * 0.8).toFixed(2);
+      unit = "kg";
+      meta = building.includes("Cafeteria")
+        ? { mealsServed: Math.round(100 + Math.random() * 200) }
+        : {};
+      break;
+  }
+
+  return { building, ts, time: formatTime(ts), value, unit, meta };
+}
+
+// 🧩 Push reading to Firebase
+async function pushReading(category, building, record) {
+  const ref = db.ref(`readings/${category}/${building}`);
+  await ref.push(record);
+
+  // Update latest snapshot
+  await db.ref(`latest/${category}/${building}`).set({
+    ts: record.ts,
+    time: record.time,
+    value: record.value,
+    unit: record.unit,
+  });
+
+  console.log(`✅ Added ${category}/${building}`, record);
+}
+
+// 🌀 Simulate fake data
+async function simulate() {
+  const ts = Date.now();
+  for (const category of categories) {
+    for (const building of buildings) {
+      const record = generateReading(category, building, ts);
+      await pushReading(category, building, record);
+    }
+  }
+}
+
+// ==================== SERVER & API LOGIC ====================
 
 // ✅ Socket.IO setup
 const io = new Server(server, {
@@ -126,8 +224,18 @@ server.listen(PORT, () => {
   console.log(`🔥 Firebase connected to: ${process.env.FIREBASE_DB_URL}`);
 });
 
-// 🔥 Test Firebase connection
+// 🔥 Test Firebase connection and start data generation
 db.ref("/test")
   .set({ message: "Server connected ✅", ts: Date.now() })
-  .then(() => console.log("✅ Firebase connection test successful"))
+  .then(() => {
+    console.log("✅ Firebase connection test successful");
+
+    // Start data generation
+    const interval = 10 * 1000; // 10s for testing
+    // const interval = 30 * 60 * 1000; // uncomment for production (30 minutes)
+
+    console.log("🚀 Data generator started...");
+    simulate(); // run immediately
+    setInterval(simulate, interval);
+  })
   .catch((err) => console.error("❌ Firebase connection test failed:", err));
