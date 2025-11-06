@@ -432,14 +432,14 @@ db.ref("/test")
   .then(() => {
     console.log("✅ Firebase connection test successful\n");
 
-    // Start data generation every 5 minutes (realistic sensor update interval)
-    const interval = 5 * 60 * 1000; // 5 minutes for realistic data simulation
-    // const interval = 30 * 60 * 1000; // uncomment for production (30 minutes)
+    // Start data generation every 30 minutes (production interval)
+    const interval = 30 * 60 * 1000; // 30 minutes for production
+    // const interval = 5 * 60 * 1000; // uncomment for development (5 minutes)
 
     console.log(`🚀 Data generator started (interval: ${interval / 1000}s)`);
     console.log(`📍 Monitoring buildings: ${buildings.join(', ')}`);
     console.log(`📂 Categories: ${categories.join(', ')}`);
-    console.log(`⏱️  Simulating real-time sensor data every 5 minutes\n`);
+    console.log(`⏱️  Simulating real-time sensor data every 30 minutes\n`);
     
     simulate(); // run immediately
     setInterval(simulate, interval);
